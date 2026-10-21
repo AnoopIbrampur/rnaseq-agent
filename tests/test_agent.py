@@ -116,3 +116,16 @@ def test_compact_result_keeps_run_id_and_rounds() -> None:
 def test_system_prompt_example_uses_no_real_gene() -> None:
     assert "GENEX" in agent_mod.SYSTEM_PROMPT and "FKBP5" not in agent_mod.SYSTEM_PROMPT
     assert config.SEED == 42
+
+
+def test_empty_reply_gets_one_retry_then_answer() -> None:
+    a = make([call("run_qc"), {"answer": ""}, {"answer": "QC passed [run:{run_qc}]."}])
+    ans = a.ask("Did QC pass?")
+    assert ans.text.startswith("QC passed") and ans.unknown_citations == []
+    assert any(e["type"] == "retry" for e in a.log[0]["events"])
+
+
+def test_two_empty_replies_give_honest_fallback() -> None:
+    a = make([call("run_qc"), {"answer": ""}, {"answer": "  "}])
+    ans = a.ask("?")
+    assert "wasn't able to produce an answer" in ans.text

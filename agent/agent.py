@@ -31,6 +31,8 @@ SYSTEM_PROMPT = (Path(__file__).parent / "system_prompt.md").read_text()
 TRANSCRIPTS = config.ROOT / "transcripts"
 CITATION_RE = re.compile(r"\[run:([0-9a-f]{8})\]")
 MAX_STEPS = 8
+EMPTY_REPLY_NUDGE = ("Your last reply was empty. Write your final answer to the user now, "
+                     "following the rules and citing run ids.")
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
     {"type": "function", "function": {
@@ -229,12 +231,26 @@ class Agent:
         self.messages.append({"role": "user", "content": question})
         turn: dict[str, Any] = {"question": question, "events": []}
         calls: list[dict[str, Any]] = []
-        text, steps = "", 0
+        text, steps, retried = "", 0, False
         for steps in range(1, MAX_STEPS + 1):
             reply = self.backend.chat(self.messages)
             turn["events"].append({"type": "model", "content": reply["content"],
                                    "tool_calls": reply["tool_calls"],
                                    "thinking": reply.get("thinking")})
+            if not reply["tool_calls"] and not reply["content"].strip():
+                # With thinking on, the model sometimes writes its answer only in the
+                # hidden thinking channel. We never show thinking text to the user;
+                # instead we ask once for the answer, then give up honestly.
+                if retried:
+                    text = ("I wasn't able to produce an answer for this question. "
+                            "Please try rephrasing it.")
+                    break
+                retried = True
+                self.messages.append({"role": "assistant", "content": ""})
+                self.messages.append({"role": "user", "content": EMPTY_REPLY_NUDGE})
+                turn["events"].append({"type": "retry", "reason": "empty_content",
+                                       "message": EMPTY_REPLY_NUDGE})
+                continue
             if not reply["tool_calls"]:
                 text = reply["content"].strip()
                 self.messages.append({"role": "assistant", "content": text})

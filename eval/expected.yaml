@@ -1,0 +1,22 @@
+# Expected dexamethasone-responsive genes for this dataset.
+#
+# This is a SANITY CHECK, not ground truth. The list comes from the project
+# brief, which describes these as glucocorticoid-responsive genes reported in
+# the literature for airway smooth muscle cells. Of these, only CRISPLD2 is
+# confirmed from a source I can point to (it is named in the title of Himes et
+# al. 2014, PLoS One 9:e99625). The others are widely described as
+# glucocorticoid-induced genes, but I have not verified a specific citation
+# for each one in this dataset. To verify: Himes et al. 2014 results/tables.
+#
+# run_eval.py checks each gene against this session's actual DE results
+# before it is used for agent agreement, and flags any that are not
+# significant in the expected direction.
+source: "Project brief; CRISPLD2 per Himes et al. 2014 title. Others: verify."
+genes:
+  FKBP5: up
+  TSC22D3: up
+  PER1: up
+  KLF15: up
+  DUSP1: up
+  ZBTB16: up
+  CRISPLD2: up

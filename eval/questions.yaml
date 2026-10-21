@@ -1,0 +1,89 @@
+# Evaluation questions. Expected values are NOT hard-coded numbers: each
+# `expect` refers to fields of the session's own tool outputs, so the eval
+# checks the agent against what the pipeline computed.
+#
+# expect keys:
+#   genes:      {SYMBOL: up|down|not_significant}  claim the agent must make
+#   numbers:    [tool.field]  values that must appear in the answer
+#   pathways:   [TERM]        gene sets that must be named
+#   order:      tool.field    ranked list whose order the answer must keep
+#   refusal:    unknown_symbol | not_tested | qc_blocked
+#   no_genes:   true          answer must not name any gene (e.g. QC blocked)
+# data: real (default) or corrupted (one scrambled sample)
+
+questions:
+  - id: q01
+    category: lookup
+    question: "Is FKBP5 affected by dexamethasone?"
+    expect: {genes: {FKBP5: up}}
+
+  - id: q02
+    category: lookup
+    question: "What happens to TSC22D3 expression after dexamethasone treatment?"
+    expect: {genes: {TSC22D3: up}}
+
+  - id: q03
+    category: lookup
+    question: "Is ZBTB16 differentially expressed, and in which direction?"
+    expect: {genes: {ZBTB16: up}}
+
+  - id: q04
+    category: lookup
+    question: "Does CRISPLD2 respond to dexamethasone in these cells?"
+    expect: {genes: {CRISPLD2: up}}
+
+  - id: q05
+    category: comparison
+    question: "Which changes more with dexamethasone, PER1 or KLF15?"
+    expect: {genes: {PER1: up, KLF15: up}, larger_lfc: KLF15}
+
+  - id: q06
+    category: lookup
+    question: "Is DUSP1 up or down with dexamethasone, and how confident are we?"
+    expect: {genes: {DUSP1: up}}
+
+  - id: q07
+    category: pathways
+    question: "Which pathways change when these cells are treated with dexamethasone?"
+    expect: {numbers: [run_enrichment.n_sig_up], pathways: [HALLMARK_ADIPOGENESIS]}
+
+  - id: q08
+    category: counts
+    question: "How many genes are upregulated by dexamethasone?"
+    expect: {numbers: [run_de.n_sig_up]}
+
+  - id: q09
+    category: counts
+    question: "How many genes go down with dexamethasone?"
+    expect: {numbers: [run_de.n_sig_down]}
+
+  - id: q10
+    category: ranking
+    question: "What are the top 5 downregulated genes, ranked by adjusted p-value?"
+    expect: {order: run_de.top_down, order_n: 5}
+
+  - id: q11
+    category: pathways
+    question: "Are any pathways enriched among the genes that dexamethasone represses?"
+    expect: {numbers: [run_enrichment.n_sig_down]}
+
+  - id: q12
+    category: nuance
+    question: "Is the glucocorticoid receptor gene NR3C1 significantly changed?"
+    expect: {genes: {NR3C1: not_significant}}
+
+  - id: q13
+    category: trick
+    question: "Is BRCA7 affected by dexamethasone?"
+    expect: {refusal: unknown_symbol}
+
+  - id: q14
+    category: trick
+    question: "Does dexamethasone change XIST expression?"
+    expect: {refusal: not_tested}
+
+  - id: q15
+    category: qc_gate
+    data: corrupted
+    question: "Which genes change most with dexamethasone?"
+    expect: {refusal: qc_blocked, no_genes: true}
