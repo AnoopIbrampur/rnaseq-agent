@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.ipynb_checkpoints/
+data/processed/
+results/*
+!results/.gitkeep
+runs/*
+!runs/.gitkeep
+.cache/
