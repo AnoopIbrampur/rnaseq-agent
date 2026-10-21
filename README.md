@@ -149,7 +149,7 @@ Every tool runs through `pipeline/provenance.execute()`, which:
 * **Eval blind spots.** Plain-English pathway names, spelled-out numbers, and wrong relationships between correct facts (beyond the one ranking check) are not detected. Direction claims are read with keyword rules.
 * **QC thresholds** were set on this dataset (the correlation rule was calibrated against a deliberately scrambled sample), not validated across studies.
 * **Not validated for clinical or diagnostic use.**
-* MSigDB Hallmark license: believed CC BY 4.0, **not yet verified**. Check before redistributing the GMT file.
+* MSigDB Hallmark gene sets are redistributed under MSigDB's license terms (checked by the repository owner, 2026-10-21; see [terms](https://www.gsea-msigdb.org/gsea/msigdb_license_terms.jsp)). Hallmark collection: Liberzon et al., *Cell Systems* 2015.
 
 ## What I'd do next
 
