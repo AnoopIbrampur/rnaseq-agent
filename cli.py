@@ -1,50 +1,107 @@
 """Command-line entry point.
 
-    python cli.py analyze            # QC gate, then differential expression
+    python cli.py analyze              # QC gate, DE, enrichment (with run records)
+    python cli.py lookup FKBP5         # one gene, with its provenance
+    python cli.py reproduce <run_id>   # re-execute a run and verify outputs match
+    python cli.py runs                 # list recent run records
 
-`ask`, `reproduce`, and `eval` arrive in later phases.
+`ask` and `eval` arrive in later phases.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 import pandas as pd
 
-from pipeline import data, de, qc
+from agent.tools import Session
+from pipeline import config, provenance
+
+
+def _tag(rec: dict) -> str:
+    return f"[run:{rec['run_id']}{' cache hit' if rec['cache_hit'] else ''}, {rec['duration_s']}s]"
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
-    ds = data.load_dataset()
-    qc_res = qc.run_qc(ds.counts, ds.metadata)
-    print(qc_res["summary"])
-    if not qc_res["passed"] and not args.override_qc:
+    s = Session()
+    qc = s.run_qc()
+    print(qc["summary"], _tag(qc))
+    if not qc["result"]["passed"] and not args.override_qc:
         print("\nStopping: QC failed. Fix the flagged samples, or rerun with "
               "--override-qc to analyze anyway (not recommended).", file=sys.stderr)
         return 2
-    de_res = de.run_de(ds.counts, ds.metadata, ds.gene_map)
-    print("\n" + de_res["summary"])
-    for w in de_res["warnings"]:
+    de = s.run_de()
+    print("\n" + de["summary"], _tag(de))
+    for w in de["result"]["warnings"]:
         print(f"  note: {w}")
-    t = pd.read_csv(de_res["artifacts"]["table"])
+    t = pd.read_csv(provenance.absolute(de["outputs"]["table"]))
     top = t[t["significant"]].head(args.top)
     print(f"\nTop {len(top)} significant genes by adjusted p-value:")
     print(top[["symbol", "baseMean", "log2FC", "stat", "padj", "direction"]]
           .to_string(index=False, float_format=lambda x: f"{x:.3g}"))
-    print("\nArtifacts:")
-    for path in list(qc_res["artifacts"].values()) + list(de_res["artifacts"].values()):
-        print(f"  {path}")
+    gsea = s.run_enrichment()
+    print("\n" + gsea["summary"], _tag(gsea))
+    for p in gsea["result"]["top_up"] + gsea["result"]["top_down"]:
+        print(f"  {p['term']:<45} NES={p['nes']:+.2f}  FDR={p['fdr']:.2g}  "
+              f"leading edge: {', '.join(p['leading_edge'][:5])}")
+    print("\nRun records:", ", ".join(f"runs/{r}.json" for r in s.runs))
+    return 0
+
+
+def cmd_lookup(args: argparse.Namespace) -> int:
+    rec = Session().lookup_gene(args.symbol)
+    print(rec["summary"], _tag(rec))
+    if args.json:
+        print(json.dumps(rec["result"], indent=2))
+    return 0
+
+
+def cmd_reproduce(args: argparse.Namespace) -> int:
+    rep = provenance.reproduce(args.run_id)
+    if "error" in rep:
+        print(f"REPRODUCE FAILED for {args.run_id}: {rep['error']}", file=sys.stderr)
+        return 1
+    print(f"Reproducing {rep['tool']} run {args.run_id} from scratch ({rep['duration_s']}s):")
+    for c in rep["checks"]:
+        mark = "OK  " if c["match"] else ("DIFF" if c.get("required", True) else "info")
+        print(f"  {mark} {c['output']:<16} {c['method']}"
+              + (f"  {c['detail']}" if c["detail"] else ""))
+    for w in rep["warnings"]:
+        print(f"  warning: {w}")
+    print("REPRODUCED: outputs match." if rep["ok"] else "NOT REPRODUCED: outputs differ.")
+    print(f"Report: runs/{args.run_id}.reproduce.json")
+    return 0 if rep["ok"] else 1
+
+
+def cmd_runs(args: argparse.Namespace) -> int:
+    recs = sorted((json.loads(p.read_text()) for p in config.RUNS.glob("*.json")
+                   if "." not in p.stem), key=lambda r: r["timestamp_utc"])
+    for r in recs[-args.n:]:
+        hit = "cache" if r["cache_hit"] else "fresh"
+        print(f"{r['run_id']}  {r['timestamp_utc']}  {r['tool']:<15} {hit}  "
+              f"{(r.get('summary') or '')[:70]}")
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Traceable RNA-seq interpretation agent")
     sub = parser.add_subparsers(dest="command", required=True)
-    p = sub.add_parser("analyze", help="Run QC and differential expression")
+    p = sub.add_parser("analyze", help="Run QC, differential expression, enrichment")
     p.add_argument("--top", type=int, default=20)
     p.add_argument("--override-qc", action="store_true")
     p.set_defaults(func=cmd_analyze)
+    p = sub.add_parser("lookup", help="Look up one gene")
+    p.add_argument("symbol")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_lookup)
+    p = sub.add_parser("reproduce", help="Re-execute a run and verify outputs")
+    p.add_argument("run_id")
+    p.set_defaults(func=cmd_reproduce)
+    p = sub.add_parser("runs", help="List recent run records")
+    p.add_argument("-n", type=int, default=20)
+    p.set_defaults(func=cmd_runs)
     args = parser.parse_args(argv)
     return args.func(args)
 

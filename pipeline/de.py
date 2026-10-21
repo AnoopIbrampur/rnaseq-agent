@@ -180,7 +180,8 @@ def run_de(
     filtered = counts.index[~keep]
     pd.DataFrame(
         {"gene_id": filtered, "symbol": gm.reindex(filtered)["symbol"].to_numpy(),
-         "max_count": counts.loc[~keep].max(axis=1).to_numpy()}
+         "max_count": counts.loc[~keep].max(axis=1).to_numpy(),
+         "n_samples_passing": (counts.loc[~keep] >= low_count["min_count"]).sum(axis=1).to_numpy()}
     ).to_csv(paths["filtered_genes"], index=False)
     plot_volcano(table, params, paths["volcano"])
 

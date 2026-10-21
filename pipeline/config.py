@@ -30,9 +30,6 @@ EXPECTED_SHA256: dict[str, str] = {
     GENE_HISTORY_FILE.name: "a7a815e4b3517f5f0f7193cd461d2d2ff5d505ed8295a910e2325e31284fa542",
 }
 
-# Derived files (rebuilt from raw inputs, safe to delete).
-GENE_MAP_FILE = DATA_PROCESSED / "gene_map.csv"
-
 # GEO holds 16 samples: 4 donor cell lines x {Untreated, Dexamethasone,
 # Albuterol, Albuterol_Dexamethasone}. This project studies one contrast,
 # dex vs untreated, so we keep only those 8 samples (the same 8 as the
@@ -70,11 +67,39 @@ QC_RULES = {
         "median suggests a mislabeled, contaminated, or degraded sample."
     ),
     "pca_top_genes": 500,
+    "min_best_correlation": 0.90,
+    "min_best_correlation_why": (
+        "Every sample should closely resemble at least one other sample (its "
+        "donor partner or a same-treatment replicate). If even its best match "
+        "correlates below this (Pearson, log-CPM), the sample's profile is "
+        "broken. Calibrated on this data: real samples' best matches are "
+        "0.980-0.989, a scrambled sample's is about -0.03."
+    ),
     "separation_r2": 0.7,
     "separation_r2_why": (
         "A factor 'separates' samples on a PC if it explains at least this "
         "fraction of that PC's variance (one-way ANOVA R^2)."
     ),
+}
+
+# MSigDB Hallmark gene sets (50 curated, non-redundant biological processes).
+GENE_SETS_FILE = DATA_RAW / "h.all.v2026.2.Hs.symbols.gmt"
+EXPECTED_SHA256[GENE_SETS_FILE.name] = (
+    "56bba1300555fb6302844fc8cdca63406eb50fa1a2472ec86468747efb3fb89b"
+)
+
+# --- Enrichment --------------------------------------------------------------
+GSEA_PARAMS = {
+    "method": "prerank GSEA",
+    "rank_metric": "DESeq2 Wald stat (dex vs untreated)",
+    "gene_sets": GENE_SETS_FILE.name,
+    "min_size": 15,
+    "max_size": 500,
+    "permutation_num": 1000,
+    "seed": SEED,
+    "fdr_threshold": 0.05,
+    "top_n": 10,
+    "symbol_collapse": SYMBOL_COLLAPSE_RULE,
 }
 
 # --- Differential expression -------------------------------------------------

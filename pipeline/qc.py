@@ -121,6 +121,32 @@ def pca_outlier_flags(
     return flags, dist
 
 
+def correlation_flags(
+    corr: pd.DataFrame, min_best: float
+) -> tuple[list[dict[str, Any]], pd.Series]:
+    """Flag samples whose highest correlation with any *other* sample is < min_best.
+
+    Returns (flags, best-match correlation per sample).
+    """
+    best = corr.mask(np.eye(len(corr), dtype=bool)).max()
+    partner = corr.mask(np.eye(len(corr), dtype=bool)).idxmax()
+    flags = [
+        {
+            "sample": s,
+            "rule": "min_best_correlation",
+            "value": float(r),
+            "threshold": float(min_best),
+            "message": (
+                f"{s}'s best match ({partner[s]}) correlates at r={r:.3f}, below "
+                f"{min_best:.2f}; its expression profile resembles no other sample."
+            ),
+        }
+        for s, r in best.items()
+        if r < min_best
+    ]
+    return flags, best
+
+
 def separation_report(
     scores: pd.DataFrame, explained: np.ndarray, metadata: pd.DataFrame, r2: float
 ) -> dict[str, Any]:
@@ -222,9 +248,10 @@ def run_qc(
 
     lib_flags = library_size_flags(lib, rules["min_library_fraction"])
     pca_flags, dist = pca_outlier_flags(scores, metadata["dex"], rules["pca_outlier_mad"])
-    flags = lib_flags + pca_flags
-    sep = separation_report(scores, explained, metadata, rules["separation_r2"])
     corr = values.corr()
+    corr_flags, best_corr = correlation_flags(corr, rules["min_best_correlation"])
+    flags = lib_flags + pca_flags + corr_flags
+    sep = separation_report(scores, explained, metadata, rules["separation_r2"])
 
     artifacts = {
         "library_sizes": out_dir / "library_sizes.png",
@@ -247,7 +274,9 @@ def run_qc(
         f"(R^2 dex={sep['PC2']['r2_dex']:.2f}, cell={sep['PC2']['r2_cell']:.2f}). "
         f"Samples separate by: {sep['separates_by']}. "
         f"Sample closest to the PCA outlier cutoff: {dist.idxmax()} "
-        f"({dist.max():.1f} vs cutoff {dist.attrs['cutoff']:.1f})."
+        f"({dist.max():.1f} vs cutoff {dist.attrs['cutoff']:.1f}). "
+        f"Lowest best-match correlation: {best_corr.min():.3f} "
+        f"(threshold {rules['min_best_correlation']:.2f})."
     )
     if flags:
         summary += " Flags: " + " ".join(f["message"] for f in flags)
@@ -264,7 +293,8 @@ def run_qc(
             "pca_centroid_distance": dist.round(4).to_dict(),
             "pca_outlier_cutoff": round(dist.attrs["cutoff"], 4),
             "separation": sep,
-            "min_sample_correlation": float(corr.where(~np.eye(len(corr), dtype=bool)).min().min()),
+            "min_sample_correlation": float(corr.mask(np.eye(len(corr), dtype=bool)).min().min()),
+            "best_match_correlation": best_corr.round(4).to_dict(),
         },
         "artifacts": {k: str(v) for k, v in artifacts.items()},
     }

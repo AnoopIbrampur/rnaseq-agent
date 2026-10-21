@@ -66,16 +66,28 @@ def test_real_data_passes_and_separates_by_both(ds, tmp_path) -> None:
         assert (tmp_path / path.split("/")[-1]).exists()
 
 
-@pytest.mark.parametrize("kind,rule", [
-    ("low_library", "min_library_fraction"),
-    ("scrambled_sample", "pca_outlier_mad"),
+def test_correlation_rule_flags_unrelated_sample() -> None:
+    corr = pd.DataFrame(
+        [[1.0, 0.98, 0.1], [0.98, 1.0, 0.2], [0.1, 0.2, 1.0]],
+        index=list("abc"), columns=list("abc"),
+    )
+    flags, best = qc.correlation_flags(corr, 0.9)
+    assert [f["sample"] for f in flags] == ["c"]
+    assert best["a"] == pytest.approx(0.98)
+
+
+@pytest.mark.parametrize("kind,rules", [
+    ("low_library", {"min_library_fraction"}),
+    ("scrambled_sample", {"pca_outlier_mad", "min_best_correlation"}),
 ])
-def test_corrupted_data_fails_gate(ds, tmp_path, kind, rule) -> None:
-    sample = ds.counts.columns[3]
+@pytest.mark.parametrize("idx", [0, 3, 6])
+def test_corrupted_data_fails_gate(ds, tmp_path, kind, rules, idx) -> None:
+    sample = ds.counts.columns[idx]
     bad = data.corrupt_counts(ds.counts, kind, sample)
     r = qc.run_qc(bad, ds.metadata, out_dir=tmp_path)
     assert not r["passed"]
-    assert [(f["sample"], f["rule"]) for f in r["flags"]] == [(sample, rule)]
+    assert {f["sample"] for f in r["flags"]} == {sample}
+    assert {f["rule"] for f in r["flags"]} == rules
     assert "FAILED" in r["summary"]
 
 
@@ -90,5 +102,5 @@ def test_corrupt_counts_is_deterministic_and_rejects_unknown(ds) -> None:
 
 
 def test_rules_have_explanations() -> None:
-    for key in ("min_library_fraction", "pca_outlier_mad", "separation_r2"):
+    for key in ("min_library_fraction", "pca_outlier_mad", "min_best_correlation", "separation_r2"):
         assert config.QC_RULES[f"{key}_why"]

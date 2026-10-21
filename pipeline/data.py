@@ -136,7 +136,7 @@ def load_counts(
 def build_gene_map(
     gene_info_path: Path = config.GENE_INFO_FILE,
     gene_history_path: Path = config.GENE_HISTORY_FILE,
-    out: Path = config.GENE_MAP_FILE,
+    out: Path = config.DATA_PROCESSED / "gene_map.csv",
 ) -> pd.DataFrame:
     """Build and cache an NCBI GeneID -> symbol (+ Ensembl ID) table.
 
@@ -151,13 +151,14 @@ def build_gene_map(
     info = pd.read_csv(
         gene_info_path,
         sep="\t",
-        usecols=["GeneID", "Symbol", "dbXrefs", "type_of_gene", "description"],
+        usecols=["GeneID", "Symbol", "Synonyms", "dbXrefs", "type_of_gene", "description"],
     )
     ensembl = info["dbXrefs"].str.extract(r"Ensembl:(ENSG\d+)", expand=False)
     current = pd.DataFrame(
         {
             "gene_id": info["GeneID"].astype(int),
             "symbol": info["Symbol"],
+            "synonyms": info["Synonyms"].replace("-", None),
             "ensembl_id": ensembl,
             "gene_type": info["type_of_gene"],
             "description": info["description"],
@@ -174,12 +175,12 @@ def build_gene_map(
         if row.GeneID != "-" and int(row.GeneID) in lookup.index:
             new = lookup.loc[int(row.GeneID)]
             retired.append(
-                (old_id, new.symbol, new.ensembl_id, new.gene_type, new.description,
+                (old_id, new.symbol, None, new.ensembl_id, new.gene_type, new.description,
                  f"gene_history:replaced_by_{row.GeneID}")
             )
         else:
             retired.append(
-                (old_id, row.Discontinued_Symbol, None, None, None,
+                (old_id, row.Discontinued_Symbol, None, None, None, None,
                  "gene_history:discontinued")
             )
     gene_map = pd.concat(
@@ -190,11 +191,22 @@ def build_gene_map(
     return gene_map
 
 
-def load_gene_map(path: Path = config.GENE_MAP_FILE) -> pd.DataFrame:
-    """Load the cached gene map, building it from gene_info if absent."""
+def load_gene_map(
+    gene_info_path: Path = config.GENE_INFO_FILE,
+    gene_history_path: Path = config.GENE_HISTORY_FILE,
+) -> pd.DataFrame:
+    """Load the gene map, building it if needed.
+
+    The cached CSV's name includes a hash of both source files' checksums, so
+    a changed gene_info or gene_history can never be served a stale map.
+    """
+    tag = hashlib.sha256(
+        (verify_raw_file(gene_info_path) + verify_raw_file(gene_history_path)).encode()
+    ).hexdigest()[:12]
+    path = config.DATA_PROCESSED / f"gene_map_{tag}.csv"
     if not path.exists():
-        return build_gene_map(out=path)
-    return pd.read_csv(path, dtype={"gene_id": int})
+        return build_gene_map(gene_info_path, gene_history_path, out=path)
+    return pd.read_csv(path, dtype={"gene_id": int, "synonyms": str}, low_memory=False)
 
 
 @dataclass
@@ -205,25 +217,17 @@ class Dataset:
     metadata: pd.DataFrame
     gene_map: pd.DataFrame
 
-    @property
-    def input_checksums(self) -> dict[str, str]:
-        """SHA-256 of each raw file this dataset was built from."""
-        return {
-            p.name: sha256(p)
-            for p in (
-                config.COUNTS_FILE,
-                config.SERIES_MATRIX_FILE,
-                config.GENE_INFO_FILE,
-                config.GENE_HISTORY_FILE,
-            )
-        }
 
-
-def load_dataset() -> Dataset:
+def load_dataset(
+    counts_path: Path = config.COUNTS_FILE,
+    metadata_path: Path = config.SERIES_MATRIX_FILE,
+    gene_info_path: Path = config.GENE_INFO_FILE,
+    gene_history_path: Path = config.GENE_HISTORY_FILE,
+) -> Dataset:
     """Load counts for the 8 dex/untreated samples, their metadata, and the gene map."""
-    metadata = load_metadata()
-    counts = load_counts(samples=list(metadata.index))
-    return Dataset(counts=counts, metadata=metadata, gene_map=load_gene_map())
+    metadata = load_metadata(metadata_path)
+    counts = load_counts(counts_path, samples=list(metadata.index))
+    return Dataset(counts, metadata, load_gene_map(gene_info_path, gene_history_path))
 
 
 CORRUPTIONS = ("low_library", "scrambled_sample")
