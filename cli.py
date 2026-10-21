@@ -5,7 +5,9 @@
     python cli.py reproduce <run_id>   # re-execute a run and verify outputs match
     python cli.py runs                 # list recent run records
 
-`ask` and `eval` arrive in later phases.
+    python cli.py ask "Is FKBP5 affected?"  # agent answer with citations
+
+`eval` arrives in Phase 5.
 """
 
 from __future__ import annotations
@@ -58,6 +60,26 @@ def cmd_lookup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ask(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from agent.agent import new_agent
+    agent = new_agent(Path(args.counts) if args.counts else None,
+                      override_qc=args.override_qc, override_reason=args.reason)
+    for q in args.question:
+        ans = agent.ask(q)
+        print(f"Q: {q}\n")
+        print(ans.text)
+        print(f"\n--- {ans.steps} model steps, {ans.duration_s}s; tools: "
+              + ", ".join(f"{c['name']}({c['arguments'].get('symbol', '')})"
+                          f"->{c['run_id'] or 'ERROR'}" for c in ans.tool_calls))
+        print(f"--- citations: {', '.join(ans.citations) or 'none'}"
+              + (f"; NOT FROM THIS SESSION: {', '.join(ans.unknown_citations)}"
+                 if ans.unknown_citations else ""))
+        print(f"--- transcript: {provenance.rel(ans.transcript_path)}\n")
+    return 0
+
+
 def cmd_reproduce(args: argparse.Namespace) -> int:
     rep = provenance.reproduce(args.run_id)
     if "error" in rep:
@@ -96,6 +118,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("symbol")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_lookup)
+    p = sub.add_parser("ask", help="Ask the agent; several questions share one session")
+    p.add_argument("question", nargs="+")
+    p.add_argument("--counts", help="Alternative count matrix (e.g. a corrupted copy)")
+    p.add_argument("--override-qc", action="store_true",
+                   help="Let the agent interpret results even if QC fails (logged)")
+    p.add_argument("--reason", default="", help="Why you are overriding QC")
+    p.set_defaults(func=cmd_ask)
     p = sub.add_parser("reproduce", help="Re-execute a run and verify outputs")
     p.add_argument("run_id")
     p.set_defaults(func=cmd_reproduce)

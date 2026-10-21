@@ -329,3 +329,17 @@ def reproduce(run_id: str, runs_dir: Path = config.RUNS) -> dict[str, Any]:
     report["timestamp_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     (runs_dir / f"{run_id}.reproduce.json").write_text(json.dumps(report, indent=2))
     return report
+
+
+def log_event(kind: str, details: dict[str, Any], runs_dir: Path = config.RUNS) -> dict[str, Any]:
+    """Record a non-computational event (e.g. a user overriding the QC gate) as a run record."""
+    record = {
+        "run_id": uuid.uuid4().hex[:8],
+        "tool": kind,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "event": to_jsonable(details),
+        "git": git_state(),
+    }
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    (runs_dir / f"{record['run_id']}.json").write_text(json.dumps(record, indent=2))
+    return record

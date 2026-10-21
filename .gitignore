@@ -10,3 +10,4 @@ results/*
 runs/*
 !runs/.gitkeep
 .cache/
+transcripts/

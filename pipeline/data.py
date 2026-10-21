@@ -254,6 +254,22 @@ def corrupt_counts(
     return bad
 
 
+def write_corrupted_counts(
+    kind: str = "scrambled_sample", sample: str = "GSM1275867", seed: int = config.SEED
+) -> Path:
+    """Write a corrupted copy of the full 16-sample count file (same format as GEO's).
+
+    Used to demonstrate and evaluate the QC gate. Lives in data/processed/.
+    """
+    raw = pd.read_csv(config.COUNTS_FILE, sep="\t", index_col="GeneID")
+    bad = corrupt_counts(raw, kind, sample, seed)
+    out = config.DATA_PROCESSED / f"corrupted_{kind}_{sample}.tsv.gz"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.GzipFile(out, "wb", mtime=0) as f:  # mtime=0: byte-identical rewrites
+        bad.to_csv(f, sep="\t")
+    return out
+
+
 def summarize(ds: Dataset) -> str:
     """Human-readable summary of the loaded dataset."""
     gm = ds.gene_map.set_index("gene_id")
