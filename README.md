@@ -80,9 +80,9 @@ cp .env.example .env                                   # defaults: local Ollama,
 ### Key results (no LLM involved)
 
 * **QC passes.** PC1 (43% of variance) is treatment, R²(dex) = 0.95; PC2 (27%) is donor, R²(cell) = 0.99.
-* **879 genes significant: 458 up, 421 down.** Top hits include SPARCL1, SAMHD1, MAOA, GPX3, DUSP1 (up) and VCAM1 (down).
+* **879 genes significant: 458 up, 421 down.** Top hits include SPARCL1, SAMHD1, MAOA, GPX3, DUSP1 (up) and VCAM1 (down). The six genes with the smallest p-values in the Bioconductor DESeq2 airway workflow [2] (MAOA, DUSP1, SAMHD1, SPARCL1, SERPINA3, GPX3) are the same six as ours, in a slightly different order, with log2 fold changes within ~0.12, even though that workflow quantifies the reads differently (Salmon/GENCODE).
 * **Paired design matters:** ignoring donor (`~dex`) finds 689 significant genes instead of 879.
-* **13 Hallmark sets enriched among dex-induced genes, none among repressed** (top: adipogenesis, TNFα signaling via NF-κB, androgen response). The NF-κB set's leading edge is DUSP1, PER1, KLF9, which are commonly described as glucocorticoid-induced genes. That's a reminder to read leading edges, not just pathway names.
+* **13 Hallmark sets enriched among dex-induced genes, none among repressed** (top: adipogenesis, TNFα signaling via NF-κB, androgen response). The NF-κB set's leading edge is DUSP1, PER1, KLF9: DUSP1 and PER1 are named as well-known glucocorticoid-responsive genes in this dataset's own paper [1], and KLF9 is a glucocorticoid-induced gene with glucocorticoid-receptor binding sites upstream of it in lung epithelial cells [4] (also shown in liver [5]). A plausible reading is that glucocorticoid targets that happen to sit in the set drive its positive score, rather than NF-κB signaling being activated. That's an interpretation, not something computed here, and a reminder to read leading edges, not just pathway names.
 * **Agreement with the authors' own analysis** (their Cuffdiff table on GEO, an independent and unpaired pipeline): log2 fold changes correlate at Spearman 0.959, and all 280 genes significant in both pipelines change in the same direction.
 
 | QC: PCA | Differential expression | Pathways |
@@ -138,7 +138,7 @@ Every tool runs through `pipeline/provenance.execute()`, which:
 * Some restating sentences go uncited (strict coverage 56%), although every cited sentence checked out.
 * The QC-blocked answer doesn't cite the QC run and says "please confirm if you want to proceed". The gate is enforced in code, so chat can't override it, but the wording is misleading, and the scorer misses it because the answer has no gene or number.
 
-`eval/expected.yaml` is a sanity check, not ground truth: the gene list comes from the project brief, and only CRISPLD2 is tied to a citation I checked (the title of Himes et al. 2014).
+`eval/expected.yaml` is a sanity check, not ground truth. Every gene has a source: FKBP5, TSC22D3, PER1, KLF15, DUSP1 and CRISPLD2 are named in this dataset's own paper [1], and ZBTB16 is a top glucocorticoid-induced gene in an independent airway smooth muscle study [3].
 
 ## Limitations
 
@@ -149,6 +149,7 @@ Every tool runs through `pipeline/provenance.execute()`, which:
 * **Eval blind spots.** Plain-English pathway names, spelled-out numbers, and wrong relationships between correct facts (beyond the one ranking check) are not detected. Direction claims are read with keyword rules.
 * **QC thresholds** were set on this dataset (the correlation rule was calibrated against a deliberately scrambled sample), not validated across studies.
 * **Not validated for clinical or diagnostic use.**
+* Literature support for the expected genes and for the NF-κB interpretation comes from a handful of papers (see References), not a systematic review.
 * MSigDB Hallmark gene sets are redistributed under MSigDB's license terms (checked by the repository owner, 2026-10-21; see [terms](https://www.gsea-msigdb.org/gsea/msigdb_license_terms.jsp)). Hallmark collection: Liberzon et al., *Cell Systems* 2015.
 
 ## What I'd do next
@@ -159,6 +160,16 @@ Every tool runs through `pipeline/provenance.execute()`, which:
 * **A knowledge layer with citations to papers:** retrieval over literature so "Context" paragraphs become cited claims too ("FKBP5 is a known GR target [PMID:…]") instead of uncited general knowledge, held to the same grounding checks.
 * **Comparison against a human analyst:** give a computational biologist the same questions and data, and score both reports on accuracy, coverage, and time.
 * **Close the known gaps:** cite the QC run in blocked answers, forbid unrequested gene suggestions, and add a scorer check for QC-answer citations, each logged in the changelog with a before/after run.
+
+## References
+
+1. Himes BE, Jiang X, Wagner P, et al. RNA-Seq transcriptome profiling identifies CRISPLD2 as a glucocorticoid responsive gene that modulates cytokine function in airway smooth muscle cells. *PLoS One* 2014;9(6):e99625. [PMID 24926665](https://pubmed.ncbi.nlm.nih.gov/24926665/) · doi:10.1371/journal.pone.0099625. The source of the data. 316 DE genes, with DUSP1, KLF15, PER1, TSC22D3 named as well-known glucocorticoid-responsive genes and FKBP5 validated by qRT-PCR.
+2. Love MI, Anders S, Kim V, Huber W. *RNA-seq workflow: gene-level exploratory analysis and differential expression* (Bioconductor `rnaseqGene` workflow, Bioconductor 3.23). [bioconductor.org/…/rnaseqGene.html](https://bioconductor.org/packages/release/workflows/vignettes/rnaseqGene/inst/doc/rnaseqGene.html). Same design (`~ cell + dex`) and the same low-count filter rule as here.
+3. Kan M, Koziol-White C, Shumyatcher M, et al. Airway smooth muscle-specific transcriptomic signatures of glucocorticoid exposure. *Am J Respir Cell Mol Biol* 2019. [PMID 30694689](https://pubmed.ncbi.nlm.nih.gov/30694689/) · doi:10.1165/rcmb.2018-0385OC. Budesonide in ASM. ZBTB16 log2FC 6.75 among the top genes.
+4. Mostafa MM, Bansal A, Michi AN, et al. Genomic determinants implicated in the glucocorticoid-mediated induction of KLF9 in pulmonary epithelial cells. *J Biol Chem* 2021. [PMID 33184061](https://pubmed.ncbi.nlm.nih.gov/33184061/) · doi:10.1074/jbc.RA120.015755.
+5. Cui A, Fan H, Zhang Y, et al. Dexamethasone-induced Krüppel-like factor 9 expression promotes hepatic gluconeogenesis and hyperglycemia. *J Clin Invest* 2019. [PMID 31033478](https://pubmed.ncbi.nlm.nih.gov/31033478/) · doi:10.1172/JCI66062.
+6. Galuh S, Faught E, Klaassen I, et al. The glucocorticoid receptor is affected by its target ZBTB16 in a dissociated manner. *J Endocrinol* 2025. [PMID 40540650](https://pubmed.ncbi.nlm.nih.gov/40540650/) · doi:10.1530/JOE-24-0283.
+7. Liberzon A, Birger C, Thorvaldsdóttir H, et al. The Molecular Signatures Database (MSigDB) hallmark gene set collection. *Cell Systems* 2015.
 
 ## Repository layout
 

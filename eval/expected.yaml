@@ -1,22 +1,28 @@
 # Expected dexamethasone-responsive genes for this dataset.
 #
-# This is a SANITY CHECK, not ground truth. The list comes from the project
-# brief, which describes these as glucocorticoid-responsive genes reported in
-# the literature for airway smooth muscle cells. Of these, only CRISPLD2 is
-# confirmed from a source I can point to (it is named in the title of Himes et
-# al. 2014, PLoS One 9:e99625). The others are widely described as
-# glucocorticoid-induced genes, but I have not verified a specific citation
-# for each one in this dataset. To verify: Himes et al. 2014 results/tables.
+# This is a SANITY CHECK, not ground truth: literature reports that these
+# genes respond to glucocorticoids, so a correct pipeline and a truthful agent
+# should report them as significantly up. Sources (verified 2026-10-21; full
+# citations in README "References"):
+#
+#   Himes 2014: Himes et al., PLoS One 9:e99625 (PMID 24926665). This dataset's
+#       own paper. Its abstract names DUSP1, KLF15, PER1 and TSC22D3 as "well
+#       known" glucocorticoid-responsive genes and CRISPLD2 as a novel one.
+#       FKBP5 also appears in Table 1 and in the qRT-PCR validation (Fig. 1B).
+#   Kan 2019: Kan et al., Am J Respir Cell Mol Biol (PMID 30694689). Independent
+#       airway smooth muscle RNA-seq (same lab, budesonide rather than dex).
+#       ZBTB16 is a top hit (log2FC 6.75, q 1.5e-107), alongside FKBP5,
+#       TSC22D3 and KLF15.
 #
 # run_eval.py checks each gene against this session's actual DE results
 # before it is used for agent agreement, and flags any that are not
 # significant in the expected direction.
-source: "Project brief; CRISPLD2 per Himes et al. 2014 title. Others: verify."
+source: "Himes et al. 2014 (PMID 24926665); Kan et al. 2019 (PMID 30694689) for ZBTB16"
 genes:
-  FKBP5: up
-  TSC22D3: up
-  PER1: up
-  KLF15: up
-  DUSP1: up
-  ZBTB16: up
-  CRISPLD2: up
+  FKBP5: up      # Himes 2014 Table 1 + qRT-PCR; Kan 2019 Table
+  TSC22D3: up    # Himes 2014 abstract (GILZ); Kan 2019 Table
+  PER1: up       # Himes 2014 abstract
+  KLF15: up      # Himes 2014 abstract; Kan 2019 Table
+  DUSP1: up      # Himes 2014 abstract
+  ZBTB16: up     # Kan 2019 Table (ASM, budesonide); not named in the Himes 2014 text
+  CRISPLD2: up   # Himes 2014 title and abstract

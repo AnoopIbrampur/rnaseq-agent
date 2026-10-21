@@ -90,12 +90,12 @@ gt = pd.read_csv(g["artifacts"]["table"])
 gt.head(15)[["term", "nes", "fdr", "set_size", "leading_edge"]].assign(
     leading_edge=lambda x: x.leading_edge.str.split(";").str[:6].str.join(", "))"""),
     code("""display(Image(g["artifacts"]["plot"], width=560))"""),
-    md("""**Read the leading edge, not just the name.** `TNFA_SIGNALING_VIA_NFKB` is enriched among *dex-induced* genes, which sounds backwards for an anti-inflammatory drug. Its leading edge is DUSP1, PER1, KLF9 and similar genes, commonly described as glucocorticoid-induced, which happen to be members of that set. *(Interpretation not computed here; to verify.)* This is why the agent cites leading-edge genes."""),
+    md("""**Read the leading edge, not just the name.** `TNFA_SIGNALING_VIA_NFKB` is enriched among *dex-induced* genes, which sounds backwards for an anti-inflammatory drug. Its leading edge is DUSP1, PER1, KLF9 and similar genes. DUSP1 and PER1 are named as well-known glucocorticoid-responsive genes in this dataset's paper (Himes et al. 2014), and KLF9 is glucocorticoid-induced with GR binding sites upstream (Mostafa et al. 2021, *J Biol Chem*). *(Interpretation, not computed here: glucocorticoid targets that sit in the set drive its score.)* This is why the agent cites leading-edge genes."""),
 
     md("""## 6. Checks
 
 ### 6a. Literature genes (sanity check, not ground truth)
-Genes from the project brief described as glucocorticoid-responsive; only CRISPLD2 is confirmed from a cited source (Himes et al. 2014 title). See `eval/expected.yaml`."""),
+Glucocorticoid-responsive genes with literature support: FKBP5, TSC22D3, PER1, KLF15, DUSP1, CRISPLD2 from this dataset's paper (Himes et al. 2014, PMID 24926665); ZBTB16 from an independent airway smooth muscle study (Kan et al. 2019, PMID 30694689). Sources per gene are in `eval/expected.yaml`."""),
     code("""import yaml
 exp = yaml.safe_load(open(ROOT / "eval/expected.yaml"))["genes"]
 t = table[table.symbol_source == "gene_info"].set_index("symbol")
