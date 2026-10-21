@@ -22,6 +22,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from pipeline import config
@@ -223,6 +224,30 @@ def load_dataset() -> Dataset:
     metadata = load_metadata()
     counts = load_counts(samples=list(metadata.index))
     return Dataset(counts=counts, metadata=metadata, gene_map=load_gene_map())
+
+
+CORRUPTIONS = ("low_library", "scrambled_sample")
+
+
+def corrupt_counts(
+    counts: pd.DataFrame, kind: str, sample: str, seed: int = config.SEED
+) -> pd.DataFrame:
+    """Return a deliberately broken copy of `counts` for testing the QC gate.
+
+    * low_library: keep each read of `sample` with probability 0.15 (binomial
+      thinning), mimicking a library that was badly under-sequenced.
+    * scrambled_sample: shuffle `sample`'s counts across genes, mimicking a
+      mislabeled or degraded sample whose profile no longer matches its group.
+    """
+    rng = np.random.default_rng(seed)
+    bad = counts.copy()
+    if kind == "low_library":
+        bad[sample] = rng.binomial(bad[sample].to_numpy(), 0.15)
+    elif kind == "scrambled_sample":
+        bad[sample] = rng.permutation(bad[sample].to_numpy())
+    else:
+        raise ValueError(f"Unknown corruption {kind!r}; choose one of {CORRUPTIONS}.")
+    return bad
 
 
 def summarize(ds: Dataset) -> str:

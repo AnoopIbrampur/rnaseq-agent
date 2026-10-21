@@ -47,3 +47,43 @@ KEEP_TREATMENTS = {"Untreated": "untrt", "Dexamethasone": "trt"}
 SYMBOL_COLLAPSE_RULE = "prefer_current_geneid_then_max_basemean"
 
 SEED = 42
+N_CPUS = 4
+
+# --- Low-count filter (shared by QC and DE) --------------------------------
+# A gene is kept if it has >= MIN_COUNT reads in at least MIN_SAMPLES samples.
+# MIN_SAMPLES = 4 is the size of the smallest group (4 treated, 4 untreated),
+# so a gene expressed only under dex is still kept.
+LOW_COUNT_FILTER = {"min_count": 10, "min_samples": 4}
+
+# --- QC gate rules -----------------------------------------------------------
+QC_RULES = {
+    "min_library_fraction": 0.5,
+    "min_library_fraction_why": (
+        "A sample with less than half the median read depth has noisier counts "
+        "and often signals a failed library prep."
+    ),
+    "pca_outlier_mad": 3.0,
+    "pca_outlier_mad_why": (
+        "On PC1/PC2 (log-CPM, top variable genes), each sample's distance to its "
+        "treatment group's centroid is compared with the other samples'. A distance "
+        "more than this many robust standard deviations (1.4826 x MAD) above the "
+        "median suggests a mislabeled, contaminated, or degraded sample."
+    ),
+    "pca_top_genes": 500,
+    "separation_r2": 0.7,
+    "separation_r2_why": (
+        "A factor 'separates' samples on a PC if it explains at least this "
+        "fraction of that PC's variance (one-way ANOVA R^2)."
+    ),
+}
+
+# --- Differential expression -------------------------------------------------
+DE_PARAMS = {
+    "design": "~cell + dex",
+    "contrast": ["dex", "trt", "untrt"],
+    "alpha": 0.05,
+    "lfc_threshold": 1.0,
+    "shrink_coeff": "dex[T.trt]",
+    "shrinkage": "apeGLM-style (pydeseq2 lfc_shrink)",
+    "significance": "padj < alpha and |shrunken log2FC| > lfc_threshold",
+}
