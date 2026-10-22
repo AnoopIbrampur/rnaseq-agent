@@ -61,7 +61,7 @@ cp .env.example .env                                   # defaults: local Ollama,
 .venv/bin/streamlit run ui/app.py                      # chat UI with provenance panels
 .venv/bin/python -m eval.run_eval                      # re-score saved transcripts (no LLM)
 .venv/bin/python -m eval.run_eval --live               # ask the model again (~12 min)
-.venv/bin/python -m pytest -q                          # 83 tests
+.venv/bin/python -m pytest -q                          # 84 tests
 ```
 
 `notebooks/01_walkthrough.ipynb` runs the full analysis without the agent, for checking the science. `DEMO.md` is a 2-minute demo script.
@@ -181,5 +181,5 @@ ui/app.py   Streamlit chat with expandable provenance panels
 cli.py      analyze | ask | lookup | runs | reproduce
 notebooks/  01_walkthrough.ipynb (built by build_walkthrough.py)
 data/       raw/ (committed, checksummed), SOURCES.md
-tests/      83 tests (QC gate, DE, provenance, cache keys, reproduce, agent loop, hallucination extractor)
+tests/      84 tests (QC gate, DE, provenance, cache keys, reproduce, agent loop, hallucination extractor)
 ```
