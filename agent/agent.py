@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from agent.tools import DataSource, Session
 from pipeline import config, provenance
@@ -225,14 +225,21 @@ class Agent:
 
     # -- main loop ------------------------------------------------------------------
 
-    def ask(self, question: str, save: bool = True) -> Answer:
-        """Answer one question, calling tools as needed; validate citations."""
+    def ask(self, question: str, save: bool = True,
+            on_progress: Callable[[dict[str, Any]], None] | None = None) -> Answer:
+        """Answer one question, calling tools as needed; validate citations.
+
+        `on_progress`, if given, is called with {"stage": "model" | "tool_start" |
+        "tool_done", ...} as work happens, so a UI can show live status.
+        """
+        notify = on_progress or (lambda event: None)
         t0 = time.perf_counter()
         self.messages.append({"role": "user", "content": question})
         turn: dict[str, Any] = {"question": question, "events": []}
         calls: list[dict[str, Any]] = []
         text, steps, retried = "", 0, False
         for steps in range(1, MAX_STEPS + 1):
+            notify({"stage": "model", "step": steps})
             reply = self.backend.chat(self.messages)
             turn["events"].append({"type": "model", "content": reply["content"],
                                    "tool_calls": reply["tool_calls"],
@@ -258,7 +265,9 @@ class Agent:
             self.messages.append({"role": "assistant", "content": reply["content"],
                                   "tool_calls": [{"function": c} for c in reply["tool_calls"]]})
             for c in reply["tool_calls"]:
+                notify({"stage": "tool_start", "name": c["name"], "arguments": c["arguments"]})
                 result = self.call_tool(c["name"], c["arguments"])
+                notify({"stage": "tool_done", "name": c["name"], "result": result})
                 calls.append({"name": c["name"], "arguments": c["arguments"],
                               "run_id": result.get("run_id"), "error": result.get("error")})
                 turn["events"].append({"type": "tool", "name": c["name"],

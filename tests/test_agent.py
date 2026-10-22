@@ -129,3 +129,12 @@ def test_two_empty_replies_give_honest_fallback() -> None:
     a = make([call("run_qc"), {"answer": ""}, {"answer": "  "}])
     ans = a.ask("?")
     assert "wasn't able to produce an answer" in ans.text
+
+
+def test_progress_callback_reports_model_and_tool_stages() -> None:
+    events = []
+    a = make([call("run_qc"), {"answer": "QC passed [run:{run_qc}]."}])
+    a.ask("?", on_progress=events.append)
+    stages = [e["stage"] for e in events]
+    assert stages == ["model", "tool_start", "tool_done", "model"]
+    assert events[2]["result"]["passed"] is True

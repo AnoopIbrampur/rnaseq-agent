@@ -1,0 +1,45 @@
+# Apple-style theme: system fonts, Apple system colors, follows the OS light/dark setting.
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+headless = true
+
+[theme]
+font = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
+headingFont = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
+codeFont = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+baseRadius = "12px"
+buttonRadius = "full"
+showWidgetBorder = false
+showSidebarBorder = false
+
+[theme.light]
+primaryColor = "#007aff"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f2f2f7"
+textColor = "#1d1d1f"
+linkColor = "#007aff"
+codeBackgroundColor = "#f2f2f7"
+borderColor = "#d1d1d6"
+dataframeHeaderBackgroundColor = "#f2f2f7"
+
+[theme.light.sidebar]
+backgroundColor = "#f2f2f7"
+secondaryBackgroundColor = "#ffffff"
+
+[theme.dark]
+primaryColor = "#0a84ff"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#1c1c1e"
+textColor = "#f5f5f7"
+linkColor = "#0a84ff"
+codeBackgroundColor = "#1c1c1e"
+borderColor = "#38383a"
+dataframeHeaderBackgroundColor = "#1c1c1e"
+
+[theme.dark.sidebar]
+backgroundColor = "#1c1c1e"
+secondaryBackgroundColor = "#2c2c2e"
